@@ -60,9 +60,15 @@ services:
     build:
       context: ../atelier/api
     environment:
+      ATELIER_DB_URL: jdbc:postgresql://atelier-db:5432/atelier
+      ATELIER_DB_USER: ${ATELIER_DB_USER:?Set ATELIER_DB_USER in .env}
+      ATELIER_DB_PASSWORD: ${ATELIER_DB_PASSWORD:?Set ATELIER_DB_PASSWORD in .env}
       ATELIER_JWT_SECRET: ${AUTH_JWT_SECRET:-${ATELIER_JWT_SECRET:-}}
     ports:
       - "127.0.0.1:8080:8080"
+    depends_on:
+      atelier-db:
+        condition: service_healthy
 
   auth-api:
     build:
