@@ -12,7 +12,23 @@ services:
     volumes:
       - postgres-data:/var/lib/postgresql/data
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U $$POSTGRES_USER -d $$POSTGRES_DB"]
+      test: ["CMD-SHELL", "pg_isready -h 127.0.0.1 -U \"$$POSTGRES_USER\" -d \"$$POSTGRES_DB\""]
+      interval: 5s
+      timeout: 5s
+      retries: 12
+
+  auth-db:
+    image: postgres:16
+    environment:
+      POSTGRES_DB: auth
+      POSTGRES_USER: ${AUTH_DB_USER:-postgres}
+      POSTGRES_PASSWORD: ${AUTH_DB_PASSWORD:?Set AUTH_DB_PASSWORD in .env}
+    ports:
+      - "127.0.0.1:5434:5432"
+    volumes:
+      - auth-postgres-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -h 127.0.0.1 -U \"$$POSTGRES_USER\" -d \"$$POSTGRES_DB\""]
       interval: 5s
       timeout: 5s
       retries: 12
@@ -42,16 +58,25 @@ services:
     build:
       context: ../atelier/api
     environment:
-      ATELIER_DB_URL: jdbc:postgresql://postgres:5432/atelier
-      ATELIER_DB_USER: ${ATELIER_DB_USER:?Set ATELIER_DB_USER in .env}
-      ATELIER_DB_PASSWORD: ${ATELIER_DB_PASSWORD:?Set ATELIER_DB_PASSWORD in .env}
-      ATELIER_JWT_SECRET: ${ATELIER_JWT_SECRET:?Set ATELIER_JWT_SECRET in .env}
+      ATELIER_JWT_SECRET: ${AUTH_JWT_SECRET:-${ATELIER_JWT_SECRET:-}}
     ports:
       - "127.0.0.1:8080:8080"
+
+  auth:
+    build:
+      context: ../auth
+    environment:
+      AUTH_DB_URL: jdbc:postgresql://auth-db:5432/auth
+      AUTH_DB_USER: ${AUTH_DB_USER:-postgres}
+      AUTH_DB_PASSWORD: ${AUTH_DB_PASSWORD:?Set AUTH_DB_PASSWORD in .env}
+      AUTH_JWT_SECRET: ${AUTH_JWT_SECRET:-${ATELIER_JWT_SECRET:-}}
+    ports:
+      - "127.0.0.1:8081:8081"
     depends_on:
-      postgres:
+      auth-db:
         condition: service_healthy
 
 volumes:
   postgres-data:
+  auth-postgres-data:
   kafka-data:
